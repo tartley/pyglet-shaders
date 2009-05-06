@@ -2,14 +2,7 @@
 
 from ctypes import byref, c_int, c_long
 
-from pyglet.gl import (
-    glGetShaderiv,
-    GL_COMPILE_STATUS, GL_DELETE_STATUS, GL_FALSE, GL_FRAGMENT_SHADER,
-    GL_INFO_LOG_LENGTH, GL_INVALID_ENUM, 
-    GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_SHADER_SOURCE_LENGTH, 
-    GL_SHADER_TYPE, GL_TRUE,
-    GL_VERTEX_SHADER,
-)
+from pyglet import gl
 
 from unittest import TestCase, main
 
@@ -37,19 +30,19 @@ class ShaderTest(TestCase):
 
     def testInitVertexShader(self):
         shader = VertexShader(['src'])
-        self.assertEqual(shader.type, GL_VERTEX_SHADER)
+        self.assertEqual(shader.type, gl.GL_VERTEX_SHADER)
         self.assertTrue(shader.id is None)
         self.assertEquals(shader.sources, ['src'])
 
 
     def testInitFragmentShader(self):
         shader = FragmentShader(['src'])
-        self.assertEqual(shader.type, GL_FRAGMENT_SHADER)
+        self.assertEqual(shader.type, gl.GL_FRAGMENT_SHADER)
         self.assertTrue(shader.id is None)
         self.assertEquals(shader.sources, ['src'])
 
 
-    @patch('shader.glGetShaderiv')
+    @patch('shader.gl.glGetShaderiv')
     def testGetShader(self, mockGlGetShader):
         mockGlGetShader.side_effect = mockGetShader(123)
         shader = VertexShader(['src'])
@@ -57,26 +50,26 @@ class ShaderTest(TestCase):
         self.assertEquals(mockGlGetShader.call_args[0][:2], (shader.id, 456))
 
 
-    @patch('shader.glGetShaderiv')
+    @patch('shader.gl.glGetShaderiv')
     def testGetShaderRaisesOnError(self, mockGlGetShader):
-        mockGlGetShader.side_effect = mockGetShader(GL_INVALID_ENUM)
+        mockGlGetShader.side_effect = mockGetShader(gl.GL_INVALID_ENUM)
         shader1 = VertexShader(['src'])
         self.assertRaises(ValueError, shader1._getShader, 456)
 
-        mockGlGetShader.side_effect = mockGetShader(GL_INVALID_OPERATION)
+        mockGlGetShader.side_effect = mockGetShader(gl.GL_INVALID_OPERATION)
         shader2 = VertexShader(['src'])
         self.assertRaises(ValueError, shader2._getShader, 456)
 
-        mockGlGetShader.side_effect = mockGetShader(GL_INVALID_VALUE)
+        mockGlGetShader.side_effect = mockGetShader(gl.GL_INVALID_VALUE)
         shader3 = VertexShader(['src'])
         self.assertRaises(ValueError, shader3._getShader, 456)
 
 
-    @patch('shader.glGetShaderiv')
+    @patch('shader.gl.glGetShaderiv')
     def testGetShaderType(self, mockGlGetShader):
         data = [
-            (GL_VERTEX_SHADER, VertexShader),
-            (GL_FRAGMENT_SHADER, FragmentShader),
+            (gl.GL_VERTEX_SHADER, VertexShader),
+            (gl.GL_FRAGMENT_SHADER, FragmentShader),
         ]
         for glResult, expectedResult in data:
             mockGlGetShader.side_effect = mockGetShader(glResult)
@@ -86,14 +79,14 @@ class ShaderTest(TestCase):
 
             self.assertEquals(actual, expectedResult)
             self.assertEquals(mockGlGetShader.call_args[0][:2],
-                (shader.id, GL_SHADER_TYPE))
+                (shader.id, gl.GL_SHADER_TYPE))
 
 
-    @patch('shader.glGetShaderiv')
+    @patch('shader.gl.glGetShaderiv')
     def testGetDeleteStatus(self, mockGlGetShader):
         data = [
-            (GL_TRUE, True),
-            (GL_FALSE, False),
+            (gl.GL_TRUE, True),
+            (gl.GL_FALSE, False),
         ]
         for glResult, expectedResult in data:
             mockGlGetShader.side_effect = mockGetShader(glResult)
@@ -103,14 +96,14 @@ class ShaderTest(TestCase):
 
             self.assertEquals(actual, expectedResult)
             self.assertEquals(mockGlGetShader.call_args[0][:2],
-                (shader.id, GL_DELETE_STATUS))
+                (shader.id, gl.GL_DELETE_STATUS))
 
 
-    @patch('shader.glGetShaderiv')
+    @patch('shader.gl.glGetShaderiv')
     def testGetCompileStatus(self, mockGlGetShader):
         data = [
-            (GL_TRUE, True),
-            (GL_FALSE, False),
+            (gl.GL_TRUE, True),
+            (gl.GL_FALSE, False),
         ]
         for glResult, expectedResult in data:
             mockGlGetShader.side_effect = mockGetShader(glResult)
@@ -120,10 +113,10 @@ class ShaderTest(TestCase):
 
             self.assertEquals(actual, expectedResult)
             self.assertEquals(mockGlGetShader.call_args[0][:2],
-                (shader.id, GL_COMPILE_STATUS))
+                (shader.id, gl.GL_COMPILE_STATUS))
 
 
-    @patch('shader.glGetShaderiv')
+    @patch('shader.gl.glGetShaderiv')
     def testGetInfoLogLength(self, mockGlGetShader):
         mockGlGetShader.side_effect = mockGetShader(123)
         shader = VertexShader(['src'])
@@ -132,10 +125,10 @@ class ShaderTest(TestCase):
 
         self.assertEquals(actual, 123)
         self.assertEquals(mockGlGetShader.call_args[0][:2],
-            (shader.id, GL_INFO_LOG_LENGTH))
+            (shader.id, gl.GL_INFO_LOG_LENGTH))
 
 
-    @patch('shader.glGetShaderiv')
+    @patch('shader.gl.glGetShaderiv')
     def testGetShaderSourceLength(self, mockGlGetShader):
         mockGlGetShader.side_effect = mockGetShader(123)
         shader = VertexShader(['src'])
@@ -144,10 +137,10 @@ class ShaderTest(TestCase):
 
         self.assertEquals(actual, 123)
         self.assertEquals(mockGlGetShader.call_args[0][:2],
-            (shader.id, GL_SHADER_SOURCE_LENGTH))
+            (shader.id, gl.GL_SHADER_SOURCE_LENGTH))
 
 
-    @patch('shader.glGetShaderInfoLog')
+    @patch('shader.gl.glGetShaderInfoLog')
     def testGetShaderInfoLog(self, mockGetLog):
         mockGetLog.side_effect = mockGetShaderInfoLog('abcd')
         shader = VertexShader(['src'])
@@ -158,7 +151,7 @@ class ShaderTest(TestCase):
         self.assertEquals(log, 'abcd')
 
 
-    @patch('shader.glGetShaderInfoLog')
+    @patch('shader.gl.glGetShaderInfoLog')
     def testGetShaderInfoLogForZeroLogSize(self, mockGetLog):
         mockGetLog.side_effect = mockGetShaderInfoLog('')
         shader = VertexShader(['src'])
@@ -169,7 +162,7 @@ class ShaderTest(TestCase):
         self.assertEquals(log, None)
 
 
-    @patch('shader.glCreateShader')
+    @patch('shader.gl.glCreateShader')
     def testCreate(self, mock):
         mock.return_value = 123
         shader = VertexShader(['src'])
@@ -179,7 +172,7 @@ class ShaderTest(TestCase):
         self.assertEquals(shader.id, 123)
 
 
-    @patch('shader.glShaderSource')
+    @patch('shader.gl.glShaderSource')
     def testShaderSource(self, mock):
         sources = ['one', 'two', 'three']
         shader = VertexShader(sources)
@@ -194,7 +187,7 @@ class ShaderTest(TestCase):
         self.assertTrue(args[3] is None)
 
 
-    @patch('shader.glShaderSource', DoNothing)
+    @patch('shader.gl.glShaderSource', DoNothing)
     def testShaderSourceCreates(self):
         shader = VertexShader(['src'])
         shader._create = Mock()
@@ -202,7 +195,7 @@ class ShaderTest(TestCase):
         self.assertTrue(shader._create.called)
     
 
-    @patch('shader.glCompileShader')
+    @patch('shader.gl.glCompileShader')
     def testCompile(self, mock):
         shader = VertexShader(['src'])
         shader._shaderSource = DoNothing
@@ -213,7 +206,7 @@ class ShaderTest(TestCase):
         self.assertEquals(mock.call_args[0], (shader.id,))
 
 
-    @patch('shader.glCompileShader', DoNothing)
+    @patch('shader.gl.glCompileShader', DoNothing)
     def testCompileSetsShaderSource(self):
         shader = VertexShader(['src'])
         shader._shaderSource = Mock()
@@ -224,7 +217,7 @@ class ShaderTest(TestCase):
         self.assertTrue(shader._shaderSource.called)
 
 
-    @patch('shader.glCompileShader', DoNothing)
+    @patch('shader.gl.glCompileShader', DoNothing)
     def testCompileRaisesOnFail(self):
         shader = VertexShader(['badsrc'])
         shader._shaderSource = DoNothing
@@ -281,7 +274,7 @@ class ShaderProgramTest(TestCase):
         self.assertEqual(p.shaders, [s1, s2, s3])
 
 
-    @patch('shader.glCreateProgram')
+    @patch('shader.gl.glCreateProgram')
     def testCreate(self, mock):
         mock.return_value = 123
         program = ShaderProgram()
@@ -290,8 +283,8 @@ class ShaderProgramTest(TestCase):
         self.assertEquals(program.id, 123)
 
 
-    @patch('shader.glAttachShader')
-    @patch('shader.glUseProgram', DoNothing)
+    @patch('shader.gl.glAttachShader')
+    @patch('shader.gl.glUseProgram', DoNothing)
     def testUseWillAttachShaders(self, mock):
         shader1 = Mock()
         shader2 = Mock()
@@ -308,8 +301,8 @@ class ShaderProgramTest(TestCase):
         self.assertEquals(mock.call_args_list, expected)
 
 
-    @patch('shader.glAttachShader', DoNothing)
-    @patch('shader.glUseProgram', DoNothing)
+    @patch('shader.gl.glAttachShader', DoNothing)
+    @patch('shader.gl.glUseProgram', DoNothing)
     def testUseWillCompileShaders(self):
         shader1 = Mock()
         shader2 = Mock()
@@ -328,7 +321,7 @@ class ShaderProgramTest(TestCase):
         pass
 
 
-    @patch('shader.glUseProgram')
+    @patch('shader.gl.glUseProgram')
     def DONTtestUse(self, mock):
         shader1 = FragmentShader(FRAGMENT_SOURCE)
         shader2 = VertexShader(VERTEX_SOURCE)
@@ -340,7 +333,7 @@ class ShaderProgramTest(TestCase):
         self.assertEquals(mock.call_args, (program.id,))
 
 
-    @patch('shader.glUseProgram', DoNothing)
+    @patch('shader.gl.glUseProgram', DoNothing)
     def DONTtestUseWillLinkIfReqd(self):
         shader = FragmentShader(FRAGMENT_SOURCE)
         program = ShaderProgram(shader)
@@ -355,7 +348,7 @@ class ShaderProgramTest(TestCase):
         self.assertTrue(program.link.called)
 
 
-    @patch('shader.glLinkProgram')
+    @patch('shader.gl.glLinkProgram')
     def DONTtestLink(self, mock):
         shader = FragmentShader(FRAGMENT_SOURCE)
         program = ShaderProgram(shader)

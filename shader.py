@@ -2,15 +2,7 @@ from ctypes import (
     byref, c_char, c_char_p, c_int, cast, create_string_buffer, pointer,
     POINTER
 )
-from pyglet.gl import (
-	glAttachShader, glCompileShader, glCreateProgram, glCreateShader,
-    glGetShaderInfoLog, glGetShaderiv, glLinkProgram, glShaderSource,
-    glUseProgram,
-    GL_COMPILE_STATUS, GL_DELETE_STATUS, GL_FRAGMENT_SHADER,
-    GL_INFO_LOG_LENGTH, GL_INVALID_ENUM,
-    GL_INVALID_OPERATION, GL_INVALID_VALUE, GL_SHADER_SOURCE_LENGTH,
-    GL_SHADER_TYPE, GL_VERTEX_SHADER
-)
+from pyglet import gl
 
 
 class ShaderError(Exception):
@@ -18,10 +10,10 @@ class ShaderError(Exception):
 
 
 shaderErrors = {
-    GL_INVALID_VALUE: 'GL_INVALID_VALUE (1st arg)',
-    GL_INVALID_OPERATION: 'GL_INVALID_OPERATION '
+    gl.GL_INVALID_VALUE: 'GL_INVALID_VALUE (1st arg)',
+    gl.GL_INVALID_OPERATION: 'GL_INVALID_OPERATION '
         '(bad shader id or immediate mode drawing in progress)',
-    GL_INVALID_ENUM: 'GL_INVALID_ENUM (2nd arg)',
+    gl.GL_INVALID_ENUM: 'GL_INVALID_ENUM (2nd arg)',
 }
 
 
@@ -36,36 +28,36 @@ class _Shader(object):
         
     def _getShader(self, paramNum):
         outvalue = c_int(0)
-        glGetShaderiv(self.id, paramNum, byref(outvalue))
+        gl.glGetShaderiv(self.id, paramNum, byref(outvalue))
         value = outvalue.value
-        if value in [GL_INVALID_ENUM, GL_INVALID_OPERATION, GL_INVALID_VALUE]:
+        if value in shaderErrors.keys():
             msg = '%s from glGetShader(%s, %s, *value)'
             raise ValueError(msg % (shaderErrors[value], self.id, paramNum))
         return value
 
 
     def getShaderType(self):
-        shader_type = self._getShader(GL_SHADER_TYPE)
-        if shader_type == GL_VERTEX_SHADER:
+        shader_type = self._getShader(gl.GL_SHADER_TYPE)
+        if shader_type == gl.GL_VERTEX_SHADER:
             return VertexShader
-        elif shader_type == GL_FRAGMENT_SHADER:
+        elif shader_type == gl.GL_FRAGMENT_SHADER:
             return FragmentShader
 
 
     def getDeleteStatus(self):
-        return self._getShader(GL_DELETE_STATUS)
+        return self._getShader(gl.GL_DELETE_STATUS)
 
 
     def getCompileStatus(self):
-        return self._getShader(GL_COMPILE_STATUS)
+        return self._getShader(gl.GL_COMPILE_STATUS)
 
 
     def getInfoLogLength(self):
-        return self._getShader(GL_INFO_LOG_LENGTH)
+        return self._getShader(gl.GL_INFO_LOG_LENGTH)
         
 
     def getShaderSourceLength(self):
-        return self._getShader(GL_SHADER_SOURCE_LENGTH)
+        return self._getShader(gl.GL_SHADER_SOURCE_LENGTH)
 
 
     def getShaderInfoLog(self):
@@ -73,12 +65,12 @@ class _Shader(object):
         if len == 0:
             return None
         buffer = create_string_buffer(len)
-        glGetShaderInfoLog(self.id, len, None, buffer)
+        gl.glGetShaderInfoLog(self.id, len, None, buffer)
         return buffer.value
 
 
     def _create(self):
-        self.id = glCreateShader(self.type)
+        self.id = gl.glCreateShader(self.type)
 
 
     def _shaderSource(self):
@@ -86,12 +78,12 @@ class _Shader(object):
         count = len(self.sources)
         all_source = (c_char_p * count)(*self.sources)
         source_array = cast(pointer(all_source), POINTER(POINTER(c_char)))
-        glShaderSource(self.id, count, source_array, None)
+        gl.glShaderSource(self.id, count, source_array, None)
  
 
     def compile(self):
         self._shaderSource()
-        glCompileShader(self.id)
+        gl.glCompileShader(self.id)
         if self.getCompileStatus() == False:
             message = self.getShaderInfoLog()
             raise ShaderError(message)
@@ -99,11 +91,11 @@ class _Shader(object):
 
 
 class VertexShader(_Shader):
-    type = GL_VERTEX_SHADER
+    type = gl.GL_VERTEX_SHADER
 
 
 class FragmentShader(_Shader):
-    type = GL_FRAGMENT_SHADER
+    type = gl.GL_FRAGMENT_SHADER
 
 
 
@@ -119,7 +111,7 @@ class ShaderProgram(object):
 
 
     def _create(self):
-        self.id = glCreateProgram()
+        self.id = gl.glCreateProgram()
 
 
     def _compile(self):
@@ -127,16 +119,16 @@ class ShaderProgram(object):
         self._create()
         for shader in self.shaders:
             shader.compile()
-            glAttachShader(self.id, shader.id)
+            gl.glAttachShader(self.id, shader.id)
 
 
     def _link(self):
         return
-        glLinkProgram(self.id)
+        gl.glLinkProgram(self.id)
 
 
     def use(self):
         return
         self._link()
-        glUseProgram(self.id)
+        gl.glUseProgram(self.id)
 
