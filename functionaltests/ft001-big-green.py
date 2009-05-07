@@ -22,6 +22,7 @@ def read_source(fname):
         src = f.read()
     finally:
         f.close()
+    print '>>>%r<<<' % (src, )
     return src
 
 

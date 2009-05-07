@@ -26,7 +26,7 @@ class _Shader(object):
         self.id = None
         
         
-    def _getShader(self, paramNum):
+    def _get(self, paramNum):
         outvalue = c_int(0)
         gl.glGetShaderiv(self.id, paramNum, byref(outvalue))
         value = outvalue.value
@@ -36,20 +36,12 @@ class _Shader(object):
         return value
 
 
-    def getShaderType(self):
-        shader_type = self._getShader(gl.GL_SHADER_TYPE)
-        if shader_type == gl.GL_VERTEX_SHADER:
-            return VertexShader
-        elif shader_type == gl.GL_FRAGMENT_SHADER:
-            return FragmentShader
-
-
     def getCompileStatus(self):
-        return self._getShader(gl.GL_COMPILE_STATUS)
+        return self._get(gl.GL_COMPILE_STATUS)
 
 
     def getInfoLogLength(self):
-        return self._getShader(gl.GL_INFO_LOG_LENGTH)
+        return self._get(gl.GL_INFO_LOG_LENGTH)
 
 
     def getShaderInfoLog(self):
@@ -102,25 +94,14 @@ class ShaderProgram(object):
         pass
 
 
-    def _create(self):
+    def use(self):
         self.id = gl.glCreateProgram()
 
-
-    def _compile(self):
-        return
-        self._create()
         for shader in self.shaders:
             shader.compile()
             gl.glAttachShader(self.id, shader.id)
 
-
-    def _link(self):
-        return
         gl.glLinkProgram(self.id)
 
-
-    def use(self):
-        return
-        self._link()
         gl.glUseProgram(self.id)
 

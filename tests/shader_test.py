@@ -49,10 +49,10 @@ class ShaderTest(TestCase):
 
 
     @patch('shader.gl.glGetShaderiv')
-    def testGetShader(self, mockGlGetShader):
+    def testGet(self, mockGlGetShader):
         mockGlGetShader.side_effect = mockGetShader(123)
         shader = VertexShader(['src'])
-        self.assertEquals(shader._getShader(456), 123)
+        self.assertEquals(shader._get(456), 123)
         self.assertEquals(mockGlGetShader.call_args[0][:2], (shader.id, 456))
 
 
@@ -60,32 +60,15 @@ class ShaderTest(TestCase):
     def testGetShaderRaisesOnError(self, mockGlGetShader):
         mockGlGetShader.side_effect = mockGetShader(gl.GL_INVALID_ENUM)
         shader1 = VertexShader(['src'])
-        self.assertRaises(ValueError, shader1._getShader, 456)
+        self.assertRaises(ValueError, shader1._get, 456)
 
         mockGlGetShader.side_effect = mockGetShader(gl.GL_INVALID_OPERATION)
         shader2 = VertexShader(['src'])
-        self.assertRaises(ValueError, shader2._getShader, 456)
+        self.assertRaises(ValueError, shader2._get, 456)
 
         mockGlGetShader.side_effect = mockGetShader(gl.GL_INVALID_VALUE)
         shader3 = VertexShader(['src'])
-        self.assertRaises(ValueError, shader3._getShader, 456)
-
-
-    @patch('shader.gl.glGetShaderiv')
-    def testGetShaderType(self, mockGlGetShader):
-        data = [
-            (gl.GL_VERTEX_SHADER, VertexShader),
-            (gl.GL_FRAGMENT_SHADER, FragmentShader),
-        ]
-        for glResult, expectedResult in data:
-            mockGlGetShader.side_effect = mockGetShader(glResult)
-            shader = VertexShader(['src'])
-
-            actual = shader.getShaderType()
-
-            self.assertEquals(actual, expectedResult)
-            self.assertEquals(mockGlGetShader.call_args[0][:2],
-                (shader.id, gl.GL_SHADER_TYPE))
+        self.assertRaises(ValueError, shader3._get, 456)
 
 
     @patch('shader.gl.glGetShaderiv')
@@ -228,120 +211,69 @@ class ShaderProgramTest(TestCase):
         self.assertTrue(p.id is None)
         self.assertEqual(p.shaders, [s1, s2])
 
-        p = ShaderProgram(s1, s2, s3)
-        self.assertTrue(p.id is None)
-        self.assertEqual(p.shaders, [s1, s2, s3])
-
-
-    def testCompileError1(self):
-        shader1 = FragmentShader(BAD_SOURCE)
-        shader2 = VertexShader(VERTEX_SOURCE)
-        program = ShaderProgram(shader1, shader2)
-        self.assertRaises(ShaderError, program.use)
-
-
-    def testCompileError2(self):
-        shader1 = FragmentShader(FRAGMENT_SOURCE)
-        shader2 = VertexShader(BAD_SOURCE)
-        program = ShaderProgram(shader1, shader2)
-        self.assertRaises(ShaderError, program.use)
-
-    def testLinkError(self):
-        self.fail('what causes a link error?')
-
-
-
-class Nothing(object):
 
     @patch('shader.gl.glCreateProgram')
-    def testCreate(self, mock):
+    @patch('shader.gl.glLinkProgram', DoNothing)
+    @patch('shader.gl.glUseProgram', DoNothing)
+    def testUseCreatesProgram(self, mock):
         mock.return_value = 123
         program = ShaderProgram()
-        program._create()
+        
+        program.use()
+
         self.assertTrue(mock.called)
         self.assertEquals(program.id, 123)
 
 
     @patch('shader.gl.glAttachShader')
+    @patch('shader.gl.glCreateProgram', DoNothing)
+    @patch('shader.gl.glLinkProgram', DoNothing)
     @patch('shader.gl.glUseProgram', DoNothing)
-    def testUseWillAttachShaders(self, mock):
+    def testUseCompilesAndAttachesShadersCompile(self, mock):
         shader1 = Mock()
         shader2 = Mock()
-        shader3 = Mock()
-        program = ShaderProgram(shader1, shader2, shader3)
-
-        program.use()
-
-        expected = [
-            ((program.id, shader1.id), {}),
-            ((program.id, shader2.id), {}),
-            ((program.id, shader3.id), {}),
-        ]
-        self.assertEquals(mock.call_args_list, expected)
-
-
-    @patch('shader.gl.glAttachShader', DoNothing)
-    @patch('shader.gl.glUseProgram', DoNothing)
-    def testUseWillCompileShaders(self):
-        shader1 = Mock()
-        shader2 = Mock()
-        shader3 = Mock()
-        program = ShaderProgram(shader1, shader2, shader3)
-
-        program.use()
-
-        self.assertTrue(shader1.compile.called)
-        self.assertTrue(shader2.compile.called)
-        self.assertTrue(shader3.compile.called)
-
-
-    def DONTtestCompile(self):
-        #self.fail()
-        pass
-
-
-    @patch('shader.gl.glUseProgram')
-    def DONTtestUse(self, mock):
-        shader1 = FragmentShader(FRAGMENT_SOURCE)
-        shader2 = VertexShader(VERTEX_SOURCE)
         program = ShaderProgram(shader1, shader2)
-        program.link = DoNothing
+        program.id = 123
         
         program.use()
 
-        self.assertEquals(mock.call_args, (program.id,))
+        self.assertEquals(shader1.compile.call_args, (tuple(), {}))
+        self.assertEquals(shader2.compile.call_args, (tuple(), {}))
+        self.assertEquals(mock.call_args_list, [
+            ((program.id, shader1.id), {}),
+            ((program.id, shader2.id), {}),
+        ])
 
 
-    @patch('shader.gl.glUseProgram', DoNothing)
-    def DONTtestUseWillLinkIfReqd(self):
-        shader = FragmentShader(FRAGMENT_SOURCE)
-        program = ShaderProgram(shader)
-        program.link = Mock()
-
-        program.getLinkStatus = lambda: True
-        program.use()
-        self.assertFalse(program.link.called)
-
-        program.getLinkStatus = lambda: False
-        program.use()
-        self.assertTrue(program.link.called)
-
-
+    @patch('shader.gl.glCreateProgram', DoNothing)
     @patch('shader.gl.glLinkProgram')
-    def DONTtestLink(self, mock):
-        shader = FragmentShader(FRAGMENT_SOURCE)
-        program = ShaderProgram(shader)
-        program.getCompileStatus = lambda: True
+    @patch('shader.gl.glUseProgram', DoNothing)
+    def testUseLinksTheShaderProgram(self, mock):
+        program = ShaderProgram()
 
-        program.link()
+        program.use()
 
-        self.assertEquals(mock.call_args, (program.id,))
+        self.assertEquals(mock.call_args, ((program.id,), {}))
 
 
-    def DONTtestCompileError(self):
-        shader = FragmentShader(BAD_SOURCE)
-        sp = ShaderProgram(shader)
-        self.assertRaises(Exception, sp.use)
+    def testUseRaisesOnLinkFailure(self):
+        self.fail()
+
+
+    @patch('shader.gl.glCreateProgram', DoNothing)
+    @patch('shader.gl.glLinkProgram', DoNothing)
+    @patch('shader.gl.glUseProgram')
+    def testUseUsesTheShaderProgram(self, mock):
+        program = ShaderProgram()
+        program._link = DoNothing
+        
+        program.use()
+
+        self.assertEquals(mock.call_args, ((program.id,), {}))
+
+
+    def testDispose(self):
+        self.fail()
 
 
 if __name__ == '__main__':
