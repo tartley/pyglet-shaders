@@ -10,6 +10,8 @@ from unittest import TestCase, main
 
 from mock import Mock, patch
 
+from sys import path
+
 import fixpath
 
 from shader import ShaderError, FragmentShader, ShaderProgram, VertexShader
@@ -229,36 +231,6 @@ class ShaderProgramTest(TestCase):
         p = ShaderProgram(s1, s2, s3)
         self.assertTrue(p.id is None)
         self.assertEqual(p.shaders, [s1, s2, s3])
-
-
-
-VERTEX_SOURCE = '''
-void main():
-{
-    gl_Position = gl_Vertex;
-}
-'''
-
-FRAGMENT_SOURCE = '''
-void main():
-{
-    gl_FragColor = vec4(1.0, 0.0. 0.0, 1.0);
-}
-'''
-
-BAD_SOURCE = '''
-asdf
-'''
-
-
-class FunctionalTest(TestCase):
-    'This will only pass if your OpenGL graphics hardware will compile shaders'
-
-    def testSuccess(self):
-        shader1 = FragmentShader(FRAGMENT_SOURCE)
-        shader2 = VertexShader(VERTEX_SOURCE)
-        program = ShaderProgram(shader1, shader2)
-        program.use()
 
 
     def testCompileError1(self):
