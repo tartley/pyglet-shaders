@@ -83,23 +83,6 @@ class ShaderTest(TestCase):
 
 
     @patch('shader.gl.glGetShaderiv')
-    def testGetDeleteStatus(self, mockGlGetShader):
-        data = [
-            (gl.GL_TRUE, True),
-            (gl.GL_FALSE, False),
-        ]
-        for glResult, expectedResult in data:
-            mockGlGetShader.side_effect = mockGetShader(glResult)
-            shader = VertexShader(['src'])
-
-            actual = shader.getDeleteStatus()
-
-            self.assertEquals(actual, expectedResult)
-            self.assertEquals(mockGlGetShader.call_args[0][:2],
-                (shader.id, gl.GL_DELETE_STATUS))
-
-
-    @patch('shader.gl.glGetShaderiv')
     def testGetCompileStatus(self, mockGlGetShader):
         data = [
             (gl.GL_TRUE, True),
@@ -126,18 +109,6 @@ class ShaderTest(TestCase):
         self.assertEquals(actual, 123)
         self.assertEquals(mockGlGetShader.call_args[0][:2],
             (shader.id, gl.GL_INFO_LOG_LENGTH))
-
-
-    @patch('shader.gl.glGetShaderiv')
-    def testGetShaderSourceLength(self, mockGlGetShader):
-        mockGlGetShader.side_effect = mockGetShader(123)
-        shader = VertexShader(['src'])
-
-        actual = shader.getShaderSourceLength()
-
-        self.assertEquals(actual, 123)
-        self.assertEquals(mockGlGetShader.call_args[0][:2],
-            (shader.id, gl.GL_SHADER_SOURCE_LENGTH))
 
 
     @patch('shader.gl.glGetShaderInfoLog')
@@ -222,13 +193,13 @@ class ShaderTest(TestCase):
         shader = VertexShader(['badsrc'])
         shader._shaderSource = DoNothing
         shader.getCompileStatus = lambda: False
-        shader.getShaderInfoLog = lambda: 'hated badsrc'
+        shader.getShaderInfoLog = lambda: 'errormessage'
         try:
             shader.compile()
             self.fail('should raise')
         except ShaderError, e:
             self.assertTrue(len(str(e)) > 10)
-            self.assertTrue('badsrc' in str(e))
+            self.assertTrue('errormessage' in str(e))
 
 
 VERTEX_SOURCE = '''

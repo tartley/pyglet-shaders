@@ -44,20 +44,12 @@ class _Shader(object):
             return FragmentShader
 
 
-    def getDeleteStatus(self):
-        return self._getShader(gl.GL_DELETE_STATUS)
-
-
     def getCompileStatus(self):
         return self._getShader(gl.GL_COMPILE_STATUS)
 
 
     def getInfoLogLength(self):
         return self._getShader(gl.GL_INFO_LOG_LENGTH)
-        
-
-    def getShaderSourceLength(self):
-        return self._getShader(gl.GL_SHADER_SOURCE_LENGTH)
 
 
     def getShaderInfoLog(self):
