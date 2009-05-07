@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+from __future__ import absolute_import
+
 from ctypes import byref, c_int, c_long
 
 from pyglet import gl
@@ -7,6 +9,8 @@ from pyglet import gl
 from unittest import TestCase, main
 
 from mock import Mock, patch
+
+import fixpath
 
 from shader import ShaderError, FragmentShader, ShaderProgram, VertexShader
 
@@ -202,24 +206,6 @@ class ShaderTest(TestCase):
             self.assertTrue('errormessage' in str(e))
 
 
-VERTEX_SOURCE = '''
-void main():
-{
-    gl_Position = gl_Vertex;
-}
-'''
-
-FRAGMENT_SOURCE = '''
-void main():
-{
-    gl_FragColor = vec4(1.0, 0.0. 0.0, 1.0);
-}
-'''
-
-BAD_SOURCE = '''
-asdf
-'''
-
 
 class ShaderProgramTest(TestCase):
 
@@ -244,6 +230,56 @@ class ShaderProgramTest(TestCase):
         self.assertTrue(p.id is None)
         self.assertEqual(p.shaders, [s1, s2, s3])
 
+
+
+VERTEX_SOURCE = '''
+void main():
+{
+    gl_Position = gl_Vertex;
+}
+'''
+
+FRAGMENT_SOURCE = '''
+void main():
+{
+    gl_FragColor = vec4(1.0, 0.0. 0.0, 1.0);
+}
+'''
+
+BAD_SOURCE = '''
+asdf
+'''
+
+
+class FunctionalTest(TestCase):
+    'This will only pass if your OpenGL graphics hardware will compile shaders'
+
+    def testSuccess(self):
+        shader1 = FragmentShader(FRAGMENT_SOURCE)
+        shader2 = VertexShader(VERTEX_SOURCE)
+        program = ShaderProgram(shader1, shader2)
+        program.use()
+
+
+    def testCompileError1(self):
+        shader1 = FragmentShader(BAD_SOURCE)
+        shader2 = VertexShader(VERTEX_SOURCE)
+        program = ShaderProgram(shader1, shader2)
+        self.assertRaises(ShaderError, program.use)
+
+
+    def testCompileError2(self):
+        shader1 = FragmentShader(FRAGMENT_SOURCE)
+        shader2 = VertexShader(BAD_SOURCE)
+        program = ShaderProgram(shader1, shader2)
+        self.assertRaises(ShaderError, program.use)
+
+    def testLinkError(self):
+        self.fail('what causes a link error?')
+
+
+
+class Nothing(object):
 
     @patch('shader.gl.glCreateProgram')
     def testCreate(self, mock):
