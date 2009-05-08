@@ -1,10 +1,9 @@
 #!/usr/bin/python
 
 '''
-You should see a big green diamond.
-If you see a small red square, then the shaders aren't working.
-
-This green diamond can only appear if your graphics card works with shaders.
+This source draws a small red square from (0,0) to (10, 10)
+If the vertex and fragment shaders are working properly,
+it should be transformed into a large (100pixel) green diamond.
 '''
 
 from sys import exit
@@ -13,7 +12,7 @@ from pyglet import app, gl
 from pyglet.window import Window
 
 import fixpath
-from shader import FragmentShader, ShaderProgram, VertexShader
+from shader import FragmentShader, ShaderError, ShaderProgram, VertexShader
 
 
 def read_source(fname):
@@ -22,7 +21,6 @@ def read_source(fname):
         src = f.read()
     finally:
         f.close()
-    print '>>>%r<<<' % (src, )
     return src
 
 
@@ -33,9 +31,9 @@ def install_shaders():
     vsrc = read_source('zoom10rotate45.vsh')
     vshader = VertexShader(vsrc)
 
-    shader = ShaderProgram(fshader, vshader)
+    shader = ShaderProgram(vshader, fshader)
     shader.use()
-    
+
 
 def draw(win):
     win.clear()
@@ -55,8 +53,12 @@ def draw(win):
 
 
 def main():
-    install_shaders()
-
+    try:
+        install_shaders()
+    except ShaderError, e:
+        print str(e)
+        return 2
+        
     win = Window(fullscreen=True)
     try:
         win.on_draw = lambda: draw(win)
@@ -67,4 +69,3 @@ def main():
 
 if __name__ == '__main__':
     exit(main())
-    

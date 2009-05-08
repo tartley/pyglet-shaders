@@ -14,22 +14,22 @@ from sys import path
 
 import fixpath
 
-from shader import ShaderError, FragmentShader, ShaderProgram, VertexShader
+from shader import CompileError, FragmentShader, LinkError, ShaderProgram, VertexShader
 
 
 DoNothing = lambda *_: None
 
 
-def mockGetShader(returnVal):
-    def _mockGetShader(_, __, p_status):
+def mockGet(returnVal):
+    def _mockGet(_, __, p_status):
         p_status._obj.value = returnVal
-    return _mockGetShader
+    return _mockGet
 
 
-def mockGetShaderInfoLog(returnVal):
-    def _mockGetShaderInfoLog(_, __, ___, p_buffer):
+def mockGetInfoLog(returnVal):
+    def _mockGetInfoLog(_, __, ___, p_buffer):
         p_buffer.value = returnVal
-    return _mockGetShaderInfoLog
+    return _mockGetInfoLog
 
 
 class ShaderTest(TestCase):
@@ -50,70 +50,70 @@ class ShaderTest(TestCase):
 
     @patch('shader.gl.glGetShaderiv')
     def testGet(self, mockGlGetShader):
-        mockGlGetShader.side_effect = mockGetShader(123)
+        mockGlGetShader.side_effect = mockGet(123)
         shader = VertexShader(['src'])
-        self.assertEquals(shader._get(456), 123)
+        shader.id = object()
+        
+        actual = shader._get(456)
+
         self.assertEquals(mockGlGetShader.call_args[0][:2], (shader.id, 456))
+        self.assertEquals(actual, 123)
 
 
     @patch('shader.gl.glGetShaderiv')
-    def testGetShaderRaisesOnError(self, mockGlGetShader):
-        mockGlGetShader.side_effect = mockGetShader(gl.GL_INVALID_ENUM)
+    def testGetRaisesOnError(self, mockGlGetShader):
+        mockGlGetShader.side_effect = mockGet(gl.GL_INVALID_ENUM)
         shader1 = VertexShader(['src'])
         self.assertRaises(ValueError, shader1._get, 456)
 
-        mockGlGetShader.side_effect = mockGetShader(gl.GL_INVALID_OPERATION)
+        mockGlGetShader.side_effect = mockGet(gl.GL_INVALID_OPERATION)
         shader2 = VertexShader(['src'])
         self.assertRaises(ValueError, shader2._get, 456)
 
-        mockGlGetShader.side_effect = mockGetShader(gl.GL_INVALID_VALUE)
+        mockGlGetShader.side_effect = mockGet(gl.GL_INVALID_VALUE)
         shader3 = VertexShader(['src'])
         self.assertRaises(ValueError, shader3._get, 456)
 
 
-    @patch('shader.gl.glGetShaderiv')
-    def testGetCompileStatus(self, mockGlGetShader):
+    def testGetCompileStatus(self):
         data = [
             (gl.GL_TRUE, True),
             (gl.GL_FALSE, False),
         ]
-        for glResult, expectedResult in data:
-            mockGlGetShader.side_effect = mockGetShader(glResult)
-            shader = VertexShader(['src'])
+        for getReturn, expected in data:
+            shader = FragmentShader(['src'])
+            shader._get = Mock(return_value=getReturn)
 
             actual = shader.getCompileStatus()
 
-            self.assertEquals(actual, expectedResult)
-            self.assertEquals(mockGlGetShader.call_args[0][:2],
-                (shader.id, gl.GL_COMPILE_STATUS))
+            self.assertEquals(shader._get.call_args, ((gl.GL_COMPILE_STATUS,), {}))
+            self.assertEquals(actual, expected)
+            self.assertEquals(type(actual), type(expected))
 
 
-    @patch('shader.gl.glGetShaderiv')
-    def testGetInfoLogLength(self, mockGlGetShader):
-        mockGlGetShader.side_effect = mockGetShader(123)
+    def testGetShaderInfoLogLength(self):
         shader = VertexShader(['src'])
+        shader._get = Mock(return_value=123)
 
         actual = shader.getInfoLogLength()
 
+        self.assertEquals(shader._get.call_args, ((gl.GL_INFO_LOG_LENGTH,), {}))
         self.assertEquals(actual, 123)
-        self.assertEquals(mockGlGetShader.call_args[0][:2],
-            (shader.id, gl.GL_INFO_LOG_LENGTH))
 
 
     @patch('shader.gl.glGetShaderInfoLog')
     def testGetShaderInfoLog(self, mockGetLog):
-        mockGetLog.side_effect = mockGetShaderInfoLog('abcd')
+        expected = 'logmessage'
+        mockGetLog.side_effect = mockGetInfoLog(expected)
         shader = VertexShader(['src'])
-        shader.getInfoLogLength = lambda: 4
+        shader.getInfoLogLength = lambda: len(expected)
 
         log = shader.getShaderInfoLog()
 
-        self.assertEquals(log, 'abcd')
+        self.assertEquals(log, expected)
 
 
-    @patch('shader.gl.glGetShaderInfoLog')
-    def testGetShaderInfoLogForZeroLogSize(self, mockGetLog):
-        mockGetLog.side_effect = mockGetShaderInfoLog('')
+    def testGetShaderInfoLogForZeroLogSize(self):
         shader = VertexShader(['src'])
         shader.getInfoLogLength = lambda: 0
 
@@ -123,21 +123,29 @@ class ShaderTest(TestCase):
 
 
     @patch('shader.gl.glCreateShader')
-    def testCreate(self, mock):
+    @patch('shader.gl.glShaderSource', DoNothing)
+    @patch('shader.gl.glCompileShader', DoNothing)
+    def testCompileCreatesShaders(self, mock):
         mock.return_value = 123
         shader = VertexShader(['src'])
-        shader._create()
+        shader.getCompileStatus = lambda: True
+        
+        shader.compile()
+
         self.assertTrue(mock.called)
         self.assertEquals(mock.call_args[0], (shader.type,))
         self.assertEquals(shader.id, 123)
 
 
+    @patch('shader.gl.glCreateShader', DoNothing)
     @patch('shader.gl.glShaderSource')
-    def testShaderSource(self, mock):
+    @patch('shader.gl.glCompileShader', DoNothing)
+    def testCompileSetsShaderSource(self, mock):
         sources = ['one', 'two', 'three']
         shader = VertexShader(sources)
+        shader.getCompileStatus = lambda: True
 
-        shader._shaderSource()
+        shader.compile()
 
         args = mock.call_args[0]
         self.assertEquals(args[:2], (shader.id, 3))
@@ -145,20 +153,13 @@ class ShaderTest(TestCase):
         actualSources = [dirarg[key] for key in sorted(dirarg.keys())]
         self.assertEquals(actualSources, sources)
         self.assertTrue(args[3] is None)
-
-
-    @patch('shader.gl.glShaderSource', DoNothing)
-    def testShaderSourceCreates(self):
-        shader = VertexShader(['src'])
-        shader._create = Mock()
-        shader._shaderSource()
-        self.assertTrue(shader._create.called)
     
 
+    @patch('shader.gl.glCreateShader', DoNothing)
+    @patch('shader.gl.glShaderSource', DoNothing)
     @patch('shader.gl.glCompileShader')
-    def testCompile(self, mock):
+    def testCompileCompilesShader(self, mock):
         shader = VertexShader(['src'])
-        shader._shaderSource = DoNothing
         shader.getCompileStatus = lambda: True
 
         shader.compile()
@@ -166,29 +167,20 @@ class ShaderTest(TestCase):
         self.assertEquals(mock.call_args[0], (shader.id,))
 
 
-    @patch('shader.gl.glCompileShader', DoNothing)
-    def testCompileSetsShaderSource(self):
-        shader = VertexShader(['src'])
-        shader._shaderSource = Mock()
-        shader.getCompileStatus = lambda: True
-
-        shader.compile()
-
-        self.assertTrue(shader._shaderSource.called)
-
-
+    @patch('shader.gl.glCreateShader', DoNothing)
+    @patch('shader.gl.glShaderSource', DoNothing)
     @patch('shader.gl.glCompileShader', DoNothing)
     def testCompileRaisesOnFail(self):
         shader = VertexShader(['badsrc'])
-        shader._shaderSource = DoNothing
         shader.getCompileStatus = lambda: False
         shader.getShaderInfoLog = lambda: 'errormessage'
         try:
             shader.compile()
             self.fail('should raise')
-        except ShaderError, e:
-            self.assertTrue(len(str(e)) > 10)
+        except CompileError, e:
             self.assertTrue('errormessage' in str(e))
+        except:
+            self.fail('should raise a CompileError')
 
 
 
@@ -212,12 +204,87 @@ class ShaderProgramTest(TestCase):
         self.assertEqual(p.shaders, [s1, s2])
 
 
+    @patch('shader.gl.glGetProgramiv')
+    def testGet(self, mockGlGetProgram):
+        mockGlGetProgram.side_effect = mockGet(123)
+        program = ShaderProgram()
+        program.id = object()
+
+        actual = program._get(456)
+
+        self.assertEquals(mockGlGetProgram.call_args[0][:2], (program.id, 456))
+        self.assertEquals(actual, 123)
+
+
+    @patch('shader.gl.glGetProgramiv')
+    def testGetRaisesOnError(self, mockGlGetProgram):
+        mockGlGetProgram.side_effect = mockGet(gl.GL_INVALID_ENUM)
+        program1 = ShaderProgram()
+        self.assertRaises(ValueError, program1._get, 456)
+
+        mockGlGetProgram.side_effect = mockGet(gl.GL_INVALID_OPERATION)
+        program2 = ShaderProgram()
+        self.assertRaises(ValueError, program2._get, 456)
+
+        mockGlGetProgram.side_effect = mockGet(gl.GL_INVALID_VALUE)
+        program3 = ShaderProgram()
+        self.assertRaises(ValueError, program3._get, 456)
+
+
+    def testGetLinkStatus(self):
+        data = [
+            (gl.GL_TRUE, True),
+            (gl.GL_FALSE, False),
+        ]
+        for getReturn, expected in data:
+            program = ShaderProgram()
+            program._get = Mock(return_value=getReturn)
+
+            actual = program.getLinkStatus()
+
+            self.assertEquals(program._get.call_args, ((gl.GL_LINK_STATUS,), {}))
+            self.assertEquals(actual, expected)
+            self.assertEquals(type(actual), type(expected))  
+            
+
+    def testGetProgramInfoLogLength(self):
+        program = ShaderProgram()
+        program._get = Mock(return_value=123)
+
+        actual = program.getInfoLogLength()
+
+        self.assertEquals(program._get.call_args, ((gl.GL_INFO_LOG_LENGTH,), {}))
+        self.assertEquals(actual, 123)
+
+
+    @patch('shader.gl.glGetProgramInfoLog')
+    def testGetProgramInfoLog(self, mockGetLog):
+        expected = 'logmessage'
+        mockGetLog.side_effect = mockGetInfoLog(expected)
+        program = ShaderProgram()
+        program.getInfoLogLength = lambda: len(expected)
+
+        log = program.getProgramInfoLog()
+
+        self.assertEquals(log, expected)
+
+
+    def testGetProgramInfoLogForZeroLogSize(self):
+        program = ShaderProgram()
+        program.getInfoLogLength = lambda: 0
+
+        log = program.getProgramInfoLog()
+
+        self.assertEquals(log, None)
+        
+            
     @patch('shader.gl.glCreateProgram')
     @patch('shader.gl.glLinkProgram', DoNothing)
     @patch('shader.gl.glUseProgram', DoNothing)
     def testUseCreatesProgram(self, mock):
         mock.return_value = 123
         program = ShaderProgram()
+        program.getLinkStatus = lambda: True
         
         program.use()
 
@@ -234,6 +301,7 @@ class ShaderProgramTest(TestCase):
         shader2 = Mock()
         program = ShaderProgram(shader1, shader2)
         program.id = 123
+        program.getLinkStatus = lambda: True
         
         program.use()
 
@@ -250,14 +318,27 @@ class ShaderProgramTest(TestCase):
     @patch('shader.gl.glUseProgram', DoNothing)
     def testUseLinksTheShaderProgram(self, mock):
         program = ShaderProgram()
+        program.getLinkStatus = lambda: True
 
         program.use()
 
         self.assertEquals(mock.call_args, ((program.id,), {}))
 
 
+    @patch('shader.gl.glCreateProgram', DoNothing)
+    @patch('shader.gl.glLinkProgram', DoNothing)
+    @patch('shader.gl.glUseProgram', DoNothing)
     def testUseRaisesOnLinkFailure(self):
-        self.fail()
+        program = ShaderProgram()
+        program.getLinkStatus = lambda: False
+        program.getProgramInfoLog = lambda: 'errormessage'
+        try:
+            program.use()
+            self.fail('should raise')
+        except LinkError, e:
+            self.assertTrue('errormessage' in str(e))
+        except:
+            self.fail('should raise a LinkError')
 
 
     @patch('shader.gl.glCreateProgram', DoNothing)
@@ -265,7 +346,7 @@ class ShaderProgramTest(TestCase):
     @patch('shader.gl.glUseProgram')
     def testUseUsesTheShaderProgram(self, mock):
         program = ShaderProgram()
-        program._link = DoNothing
+        program.getLinkStatus = lambda: True
         
         program.use()
 

@@ -5,15 +5,16 @@ from ctypes import (
 from pyglet import gl
 
 
-class ShaderError(Exception):
-    pass
+class ShaderError(Exception): pass
+class CompileError(ShaderError): pass
+class LinkError(ShaderError): pass
 
 
 shaderErrors = {
-    gl.GL_INVALID_VALUE: 'GL_INVALID_VALUE (1st arg)',
+    gl.GL_INVALID_VALUE: 'GL_INVALID_VALUE (bad 1st arg)',
     gl.GL_INVALID_OPERATION: 'GL_INVALID_OPERATION '
-        '(bad shader id or immediate mode drawing in progress)',
-    gl.GL_INVALID_ENUM: 'GL_INVALID_ENUM (2nd arg)',
+        '(bad id or immediate mode drawing in progress)',
+    gl.GL_INVALID_ENUM: 'GL_INVALID_ENUM (bad 2nd arg)',
 }
 
 
@@ -26,18 +27,18 @@ class _Shader(object):
         self.id = None
         
         
-    def _get(self, paramNum):
+    def _get(self, paramId):
         outvalue = c_int(0)
-        gl.glGetShaderiv(self.id, paramNum, byref(outvalue))
+        gl.glGetShaderiv(self.id, paramId, byref(outvalue))
         value = outvalue.value
         if value in shaderErrors.keys():
-            msg = '%s from glGetShader(%s, %s, *value)'
-            raise ValueError(msg % (shaderErrors[value], self.id, paramNum))
+            msg = '%s from glGetShader(%s, %s, &value)'
+            raise ValueError(msg % (shaderErrors[value], self.id, paramId))
         return value
 
 
     def getCompileStatus(self):
-        return self._get(gl.GL_COMPILE_STATUS)
+        return bool(self._get(gl.GL_COMPILE_STATUS))
 
 
     def getInfoLogLength(self):
@@ -45,32 +46,29 @@ class _Shader(object):
 
 
     def getShaderInfoLog(self):
-        len = self.getInfoLogLength()
-        if len == 0:
+        length = self.getInfoLogLength()
+        if length == 0:
             return None
-        buffer = create_string_buffer(len)
-        gl.glGetShaderInfoLog(self.id, len, None, buffer)
+        buffer = create_string_buffer(length)
+        gl.glGetShaderInfoLog(self.id, length, None, buffer)
         return buffer.value
 
 
-    def _create(self):
-        self.id = gl.glCreateShader(self.type)
-
-
-    def _shaderSource(self):
-        self._create()
-        count = len(self.sources)
-        all_source = (c_char_p * count)(*self.sources)
-        source_array = cast(pointer(all_source), POINTER(POINTER(c_char)))
-        gl.glShaderSource(self.id, count, source_array, None)
- 
+    def _srcToArray(self):
+        num = len(self.sources)
+        all_source = (c_char_p * num)(*self.sources)
+        return num, cast(pointer(all_source), POINTER(POINTER(c_char)))
+        
 
     def compile(self):
-        self._shaderSource()
+        self.id = gl.glCreateShader(self.type)
+
+        num, src = self._srcToArray()
+        gl.glShaderSource(self.id, num, src, None)
+        
         gl.glCompileShader(self.id)
         if self.getCompileStatus() == False:
-            message = self.getShaderInfoLog()
-            raise ShaderError(message)
+            raise CompileError(self.getShaderInfoLog())
 
 
 
@@ -89,11 +87,34 @@ class ShaderProgram(object):
         self.shaders = list(shaders)
         self.id = None
 
-
+    
+    def _get(self, paramId):
+        outvalue = c_int(0)
+        gl.glGetProgramiv(self.id, paramId, byref(outvalue))
+        value = outvalue.value
+        if value in shaderErrors.keys():
+            msg = '%s from glGetProgram(%s, %s, &value)'
+            raise ValueError(msg % (shaderErrors[value], self.id, paramId))
+        return value
+        
+        
     def getLinkStatus(self):
-        pass
+        return bool(self._get(gl.GL_LINK_STATUS))
 
 
+    def getInfoLogLength(self):
+        return self._get(gl.GL_INFO_LOG_LENGTH)
+
+
+    def getProgramInfoLog(self):
+        length = self.getInfoLogLength()
+        if length == 0:
+            return None
+        buffer = create_string_buffer(length)
+        gl.glGetProgramInfoLog(self.id, length, None, buffer)
+        return buffer.value
+        
+        
     def use(self):
         self.id = gl.glCreateProgram()
 
@@ -102,6 +123,8 @@ class ShaderProgram(object):
             gl.glAttachShader(self.id, shader.id)
 
         gl.glLinkProgram(self.id)
+        if self.getLinkStatus() != True:
+            raise LinkError(self.getProgramInfoLog())
 
         gl.glUseProgram(self.id)
 
