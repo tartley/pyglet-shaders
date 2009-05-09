@@ -201,29 +201,30 @@ class ShaderProgramTest(TestCase):
         self.assertEqual(p.shaders, [s1, s2])
 
 
-    @patch('shader.gl.glGetProgramiv')
-    def testGet(self, mockGlGetProgram):
-        mockGlGetProgram.side_effect = mockGet(123)
+    @patch('shader.gl')
+    def testGet(self, mockGl):
+        mockGl.glGetProgramiv.side_effect = mockGet(123)
         program = ShaderProgram()
         program.id = object()
 
         actual = program._get(456)
 
-        self.assertEquals(mockGlGetProgram.call_args[0][:2], (program.id, 456))
+        self.assertEquals(mockGl.glGetProgramiv.call_args[0][:2],
+            (program.id, 456))
         self.assertEquals(actual, 123)
 
 
-    @patch('shader.gl.glGetProgramiv')
-    def testGetRaisesOnError(self, mockGlGetProgram):
-        mockGlGetProgram.side_effect = mockGet(gl.GL_INVALID_ENUM)
+    @patch('shader.gl')
+    def testGetRaisesOnError(self, mockGl):
+        mockGl.glGetProgramiv.side_effect = mockGet(gl.GL_INVALID_ENUM)
         program1 = ShaderProgram()
         self.assertRaises(ValueError, program1._get, 456)
 
-        mockGlGetProgram.side_effect = mockGet(gl.GL_INVALID_OPERATION)
+        mockGl.glGetProgramiv.side_effect = mockGet(gl.GL_INVALID_OPERATION)
         program2 = ShaderProgram()
         self.assertRaises(ValueError, program2._get, 456)
 
-        mockGlGetProgram.side_effect = mockGet(gl.GL_INVALID_VALUE)
+        mockGl.glGetProgramiv.side_effect = mockGet(gl.GL_INVALID_VALUE)
         program3 = ShaderProgram()
         self.assertRaises(ValueError, program3._get, 456)
 
@@ -242,7 +243,7 @@ class ShaderProgramTest(TestCase):
             self.assertEquals(program._get.call_args,
                 ((gl.GL_LINK_STATUS,), {}))
             self.assertEquals(actual, expected)
-            self.assertEquals(type(actual), type(expected))  
+            self.assertEquals(type(actual), type(expected))
             
 
     def testGetProgramInfoLogLength(self):
@@ -256,10 +257,10 @@ class ShaderProgramTest(TestCase):
         self.assertEquals(actual, 123)
 
 
-    @patch('shader.gl.glGetProgramInfoLog')
-    def testGetProgramInfoLog(self, mockGetLog):
+    @patch('shader.gl')
+    def testGetProgramInfoLog(self, mockGl):
         expected = 'logmessage'
-        mockGetLog.side_effect = mockGetInfoLog(expected)
+        mockGl.glGetProgramInfoLog.side_effect = mockGetInfoLog(expected)
         program = ShaderProgram()
         program.getInfoLogLength = lambda: len(expected)
 
@@ -277,25 +278,20 @@ class ShaderProgramTest(TestCase):
         self.assertEquals(log, None)
         
             
-    @patch('shader.gl.glCreateProgram')
-    @patch('shader.gl.glLinkProgram', DoNothing)
-    @patch('shader.gl.glUseProgram', DoNothing)
-    def testUseCreatesProgram(self, mock):
-        mock.return_value = 123
+    @patch('shader.gl')
+    def testUseCreatesProgram(self, mockGl):
+        mockGl.glCreateProgram.return_value = 123
         program = ShaderProgram()
         program.getLinkStatus = lambda: True
         
         program.use()
 
-        self.assertTrue(mock.called)
+        self.assertTrue(mockGl.glCreateProgram.called)
         self.assertEquals(program.id, 123)
 
 
-    @patch('shader.gl.glAttachShader')
-    @patch('shader.gl.glCreateProgram', DoNothing)
-    @patch('shader.gl.glLinkProgram', DoNothing)
-    @patch('shader.gl.glUseProgram', DoNothing)
-    def testUseCompilesAndAttachesShaders(self, mock):
+    @patch('shader.gl')
+    def testUseCompilesAndAttachesShaders(self, mockGl):
         shader1 = Mock()
         shader2 = Mock()
         program = ShaderProgram(shader1, shader2)
@@ -306,28 +302,24 @@ class ShaderProgramTest(TestCase):
 
         self.assertEquals(shader1.compile.call_args, (tuple(), {}))
         self.assertEquals(shader2.compile.call_args, (tuple(), {}))
-        self.assertEquals(mock.call_args_list, [
+        self.assertEquals(mockGl.glAttachShader.call_args_list, [
             ((program.id, shader1.id), {}),
             ((program.id, shader2.id), {}),
         ])
 
 
-    @patch('shader.gl.glCreateProgram', DoNothing)
-    @patch('shader.gl.glLinkProgram')
-    @patch('shader.gl.glUseProgram', DoNothing)
-    def testUseLinksTheShaderProgram(self, mock):
+    @patch('shader.gl')
+    def testUseLinksTheShaderProgram(self, mockGl):
         program = ShaderProgram()
         program.getLinkStatus = lambda: True
 
         program.use()
 
-        self.assertEquals(mock.call_args, ((program.id,), {}))
+        self.assertEquals(mockGl.glLinkProgram.call_args, ((program.id,), {}))
         self.fail('and returns infolog text')
 
 
-    @patch('shader.gl.glCreateProgram', DoNothing)
-    @patch('shader.gl.glLinkProgram', DoNothing)
-    @patch('shader.gl.glUseProgram', DoNothing)
+    @patch('shader.gl', Mock())
     def testUseRaisesOnLinkFailure(self):
         program = ShaderProgram()
         program.getLinkStatus = lambda: False
@@ -341,16 +333,14 @@ class ShaderProgramTest(TestCase):
             self.fail('should raise a LinkError')
 
 
-    @patch('shader.gl.glCreateProgram', DoNothing)
-    @patch('shader.gl.glLinkProgram', DoNothing)
-    @patch('shader.gl.glUseProgram')
-    def testUseUsesTheShaderProgram(self, mock):
+    @patch('shader.gl')
+    def testUseUsesTheShaderProgram(self, mockGl):
         program = ShaderProgram()
         program.getLinkStatus = lambda: True
         
         program.use()
 
-        self.assertEquals(mock.call_args, ((program.id,), {}))
+        self.assertEquals(mockGl.glUseProgram.call_args, ((program.id,), {}))
 
 
     def testDispose(self):
