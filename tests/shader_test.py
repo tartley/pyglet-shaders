@@ -35,14 +35,24 @@ def mockGetInfoLog(returnVal):
 class ShaderTest(TestCase):
 
     def testInitVertexShader(self):
+        shader = VertexShader('src')
+        self.assertEqual(shader.type, gl.GL_VERTEX_SHADER)
+        self.assertTrue(shader.id is None)
+        self.assertEquals(shader.sources, ['src'])
+
         shader = VertexShader(['src'])
         self.assertEqual(shader.type, gl.GL_VERTEX_SHADER)
         self.assertTrue(shader.id is None)
         self.assertEquals(shader.sources, ['src'])
 
+        shader = VertexShader(['s1', 's2'])
+        self.assertEqual(shader.type, gl.GL_VERTEX_SHADER)
+        self.assertTrue(shader.id is None)
+        self.assertEquals(shader.sources, ['s1', 's2'])
+
 
     def testInitFragmentShader(self):
-        shader = FragmentShader(['src'])
+        shader = FragmentShader('src')
         self.assertEqual(shader.type, gl.GL_FRAGMENT_SHADER)
         self.assertTrue(shader.id is None)
         self.assertEquals(shader.sources, ['src'])
@@ -121,7 +131,7 @@ class ShaderTest(TestCase):
 
         log = shader.getInfoLog()
 
-        self.assertEquals(log, None)
+        self.assertEquals(log, '')
 
 
     @patch('shader.gl')
@@ -143,7 +153,6 @@ class ShaderTest(TestCase):
         sources = ['one', 'two', 'three']
         shader = VertexShader(sources)
         shader.getCompileStatus = lambda: True
-        shader.getInfoLog = DoNothing
 
         shader.compile()
 
@@ -160,10 +169,10 @@ class ShaderTest(TestCase):
         shader = VertexShader(['src'])
         shader.getCompileStatus = lambda: True
         shader.getInfoLog = lambda: 'compilemessage'
-        message = shader.compile()
+
+        shader.compile()
 
         self.assertEquals(mockGl.glCompileShader.call_args[0], (shader.id,))
-        self.assertTrue('compilemessage' in message)
 
 
     @patch('shader.gl', Mock())
@@ -275,7 +284,7 @@ class ShaderProgramTest(TestCase):
 
         log = program.getInfoLog()
 
-        self.assertEquals(log, None)
+        self.assertEquals(log, '')
         
             
     @patch('shader.gl')
@@ -296,6 +305,7 @@ class ShaderProgramTest(TestCase):
         shader2 = Mock()
         program = ShaderProgram(shader1, shader2)
         program.id = 123
+        program._getMessage = DoNothing
         program.getLinkStatus = lambda: True
         
         program.use()
@@ -312,24 +322,37 @@ class ShaderProgramTest(TestCase):
     def testUseLinksTheShaderProgram(self, mockGl):
         program = ShaderProgram()
         program.getLinkStatus = lambda: True
-        program.getInfoLog = lambda: 'linkmessage'
+
+        program.use()
+
+        self.assertEquals(mockGl.glLinkProgram.call_args, ((program.id,), {}))
+
+
+    @patch('shader.gl', Mock())
+    def testUseReturnsConcatenatedMessages(self):
+        shader1 = Mock()
+        shader2 = Mock()
+        shader1.getInfoLog = lambda: 's1'
+        shader2.getInfoLog = lambda: 's2'
+        program = ShaderProgram(shader1, shader2)
+        program.getInfoLog = lambda: 'p0'
+        program.getLinkStatus = lambda: True
 
         message = program.use()
 
-        self.assertEquals(mockGl.glLinkProgram.call_args, ((program.id,), {}))
-        self.assertTrue('linkmessage' in message)
+        self.assertEquals(message, 's1\ns2\np0')
 
 
     @patch('shader.gl', Mock())
     def testUseRaisesOnLinkFailure(self):
         program = ShaderProgram()
         program.getLinkStatus = lambda: False
-        program.getInfoLog = lambda: 'errormessage'
+        program.getInfoLog = lambda: 'linkerror'
         try:
             program.use()
             self.fail('should raise')
         except LinkError, e:
-            self.assertTrue('errormessage' in str(e))
+            self.assertTrue('linkerror' in str(e))
         except:
             self.fail('should raise a LinkError')
 

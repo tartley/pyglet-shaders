@@ -23,7 +23,10 @@ class _Shader(object):
     type = None
 
     def __init__(self, sources):
-        self.sources = sources
+        if isinstance(sources, basestring):
+            self.sources = [sources]
+        else:
+            self.sources = sources
         self.id = None
         
         
@@ -48,7 +51,7 @@ class _Shader(object):
     def getInfoLog(self):
         length = self.getInfoLogLength()
         if length == 0:
-            return None
+            return ''
         buffer = create_string_buffer(length)
         gl.glGetShaderInfoLog(self.id, length, None, buffer)
         return buffer.value
@@ -68,11 +71,8 @@ class _Shader(object):
         
         gl.glCompileShader(self.id)
 
-        message = self.getInfoLog()
-        if self.getCompileStatus():
-            return message
-        else:
-            raise CompileError(message)
+        if not self.getCompileStatus():
+            raise CompileError(self.getInfoLog())
 
 
 
@@ -113,21 +113,34 @@ class ShaderProgram(object):
     def getInfoLog(self):
         length = self.getInfoLogLength()
         if length == 0:
-            return None
+            return ''
         buffer = create_string_buffer(length)
         gl.glGetProgramInfoLog(self.id, length, None, buffer)
         return buffer.value
         
+
+    def _getMessage(self):
+        messages = []
+        for shader in self.shaders:
+            log = shader.getInfoLog()
+            if log:
+                messages.append(log)
+        log = self.getInfoLog()
+        if log:
+            messages.append(log)
+        return '\n'.join(messages)
+
         
     def use(self):
         self.id = gl.glCreateProgram()
-
+        
         for shader in self.shaders:
             shader.compile()
             gl.glAttachShader(self.id, shader.id)
 
         gl.glLinkProgram(self.id)
-        message = self.getInfoLog()
+
+        message = self._getMessage()
         if not self.getLinkStatus():
             raise LinkError(message)
 
