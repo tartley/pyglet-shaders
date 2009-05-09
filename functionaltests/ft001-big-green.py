@@ -56,7 +56,7 @@ def main():
     try:
         install_shaders()
     except ShaderError, e:
-        print str(e)
+        print '%s: %s' %(type(e).__name__, str(e))
         return 2
         
     win = Window(fullscreen=True)

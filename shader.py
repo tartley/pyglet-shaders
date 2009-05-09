@@ -45,7 +45,7 @@ class _Shader(object):
         return self._get(gl.GL_INFO_LOG_LENGTH)
 
 
-    def getShaderInfoLog(self):
+    def getInfoLog(self):
         length = self.getInfoLogLength()
         if length == 0:
             return None
@@ -67,8 +67,12 @@ class _Shader(object):
         gl.glShaderSource(self.id, num, src, None)
         
         gl.glCompileShader(self.id)
-        if self.getCompileStatus() == False:
-            raise CompileError(self.getShaderInfoLog())
+
+        message = self.getInfoLog()
+        if self.getCompileStatus():
+            return message
+        else:
+            raise CompileError(message)
 
 
 
