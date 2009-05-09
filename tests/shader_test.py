@@ -246,7 +246,7 @@ class ShaderProgramTest(TestCase):
             self.assertEquals(type(actual), type(expected))
             
 
-    def testGetProgramInfoLogLength(self):
+    def testGetInfoLogLength(self):
         program = ShaderProgram()
         program._get = Mock(return_value=123)
 
@@ -258,22 +258,22 @@ class ShaderProgramTest(TestCase):
 
 
     @patch('shader.gl')
-    def testGetProgramInfoLog(self, mockGl):
+    def testGetInfoLog(self, mockGl):
         expected = 'logmessage'
         mockGl.glGetProgramInfoLog.side_effect = mockGetInfoLog(expected)
         program = ShaderProgram()
         program.getInfoLogLength = lambda: len(expected)
 
-        log = program.getProgramInfoLog()
+        log = program.getInfoLog()
 
         self.assertEquals(log, expected)
 
 
-    def testGetProgramInfoLogForZeroLogSize(self):
+    def testGetInfoLogForZeroLogSize(self):
         program = ShaderProgram()
         program.getInfoLogLength = lambda: 0
 
-        log = program.getProgramInfoLog()
+        log = program.getInfoLog()
 
         self.assertEquals(log, None)
         
@@ -312,18 +312,19 @@ class ShaderProgramTest(TestCase):
     def testUseLinksTheShaderProgram(self, mockGl):
         program = ShaderProgram()
         program.getLinkStatus = lambda: True
+        program.getInfoLog = lambda: 'linkmessage'
 
-        program.use()
+        message = program.use()
 
         self.assertEquals(mockGl.glLinkProgram.call_args, ((program.id,), {}))
-        self.fail('and returns infolog text')
+        self.assertTrue('linkmessage' in message)
 
 
     @patch('shader.gl', Mock())
     def testUseRaisesOnLinkFailure(self):
         program = ShaderProgram()
         program.getLinkStatus = lambda: False
-        program.getProgramInfoLog = lambda: 'errormessage'
+        program.getInfoLog = lambda: 'errormessage'
         try:
             program.use()
             self.fail('should raise')

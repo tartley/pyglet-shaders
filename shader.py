@@ -110,7 +110,7 @@ class ShaderProgram(object):
         return self._get(gl.GL_INFO_LOG_LENGTH)
 
 
-    def getProgramInfoLog(self):
+    def getInfoLog(self):
         length = self.getInfoLogLength()
         if length == 0:
             return None
@@ -127,8 +127,10 @@ class ShaderProgram(object):
             gl.glAttachShader(self.id, shader.id)
 
         gl.glLinkProgram(self.id)
-        if self.getLinkStatus() != True:
-            raise LinkError(self.getProgramInfoLog())
+        message = self.getInfoLog()
+        if not self.getLinkStatus():
+            raise LinkError(message)
 
         gl.glUseProgram(self.id)
+        return message
 
