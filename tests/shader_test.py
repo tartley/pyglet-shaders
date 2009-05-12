@@ -10,8 +10,6 @@ from unittest import TestCase, main
 
 from mock import Mock, patch
 
-from sys import path
-
 import fixpath
 
 from shader import CompileError, FragmentShader, LinkError, ShaderProgram, VertexShader
