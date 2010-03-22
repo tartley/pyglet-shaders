@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
 '''
-This source draws a small (20 pixel) red square
-If the vertex and fragment shaders are working properly,
-it should be transformed into a large (300 pixel) green diamond.
+This source draws a small (20 pixel) dark red square
+The vertex shader scales and rotates it by 45 degrees to form a 300 pixel
+diamond shape. The fragment shader colors it pale green.
 '''
 
 from sys import exit
@@ -12,7 +12,8 @@ from pyglet import app, gl
 from pyglet.event import EVENT_HANDLED
 from pyglet.window import Window
 
-import fixpath
+import fixpath; fixpath
+
 from shader import FragmentShader, ShaderError, ShaderProgram, VertexShader
 
 
@@ -25,11 +26,11 @@ def read_source(fname):
     return src
 
 
-def install_shaders():
-    fsrc = read_source('allGreen.fsh')
+def install_shaders(fragment, vertex):
+    fsrc = read_source(fragment)
     fshader = FragmentShader([fsrc])
 
-    vsrc = read_source('zoomAndRotate.vsh')
+    vsrc = read_source(vertex)
     vshader = VertexShader([vsrc])
 
     shader = ShaderProgram(fshader, vshader)
@@ -46,7 +47,7 @@ def on_resize(width, height):
 
 
 def draw_red_square():
-    gl.glColor3ub(255, 0, 0)
+    gl.glColor3ub(127, 0, 0)
     gl.glBegin(gl.GL_QUADS)
     gl.glVertex2f(-10, -10)
     gl.glVertex2f(10, -10)
@@ -66,7 +67,7 @@ def main():
     try:
 
         try:
-            install_shaders()
+            install_shaders('allGreen.fsh', 'zoomAndRotate.vsh')
         except ShaderError, e:
             print str(e)
             return 2
