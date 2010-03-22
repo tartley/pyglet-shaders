@@ -67,7 +67,7 @@ def main():
     try:
 
         try:
-            install_shaders('allGreen.fsh', 'zoomAndRotate.vsh')
+            install_shaders('allGreen.frag', 'zoomRotate.vert')
         except ShaderError, e:
             print str(e)
             return 2
